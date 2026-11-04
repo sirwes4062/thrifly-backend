@@ -19,4 +19,14 @@ describe('AppController', () => {
       expect(appController.getHello()).toBe('Hello from thrifly fintech server...');
     });
   });
+
+  describe('health', () => {
+    it('should return the backend health payload', () => {
+      expect(appController.getHealth()).toMatchObject({
+        status: 'ok',
+        message: 'Thriftly backend is running',
+      });
+      expect(appController.getHealth().timestamp).toBeTypeOf('string');
+    });
+  });
 });
