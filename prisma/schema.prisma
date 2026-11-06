@@ -533,6 +533,9 @@ model users {
   group_members               group_members[]
   groups                      groups[]
   payout_history              payout_history[]
+
+  turn_swap_requests_sent     turn_swap_requests[] @relation("TurnSwapRequester")
+  turn_swap_requests_received turn_swap_requests[] @relation("TurnSwapRecipient")
   payout_schedule             payout_schedule[]
   profiles                    profiles?
   transactions                transactions[]
@@ -615,26 +618,28 @@ model group_members {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model groups {
-  id                        String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id                        String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   group_name                String
-  admin_id                  String            @db.Uuid
-  contribution_amount       Decimal           @db.Decimal
+  admin_id                  String                 @db.Uuid
+  contribution_amount       Decimal                @db.Decimal
   cycle_length              Int
   payout_day                Int?
-  payout_schedule_generated Boolean           @default(false)
-  created_at                DateTime          @default(now()) @db.Timestamptz(6)
-  pool_account_number       String?           @unique @db.VarChar(10)
-  pool_account_name         String?           @db.VarChar(255)
-  pool_bank_name            String?           @default("OPay") @db.VarChar(100)
-  pool_reference            String?           @unique @db.VarChar(100)
-  pool_balance              Decimal?          @default(0.00) @db.Decimal(15, 2)
-  contribution_frequency contribution_frequency @default(MONTHLY)
+  payout_schedule_generated Boolean                @default(false)
+  created_at                DateTime               @default(now()) @db.Timestamptz(6)
+  pool_account_number       String?                @unique @db.VarChar(10)
+  pool_account_name         String?                @db.VarChar(255)
+  pool_bank_name            String?                @default("OPay") @db.VarChar(100)
+  pool_reference            String?                @unique @db.VarChar(100)
+  pool_balance              Decimal?               @default(0.00) @db.Decimal(15, 2)
+  contribution_frequency    contribution_frequency @default(MONTHLY)
   contributions             contributions[]
   group_members             group_members[]
-  users                     users             @relation(fields: [admin_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users                     users                  @relation(fields: [admin_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   payout_history            payout_history[]
   payout_schedule           payout_schedule[]
-  transactions              transactions[]
+
+  turn_swap_requests turn_swap_requests[]
+  transactions       transactions[]
 
   @@schema("public")
 }
@@ -718,6 +723,31 @@ model wallets {
   @@schema("public")
 }
 
+model turn_swap_requests {
+  id           String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  group_id     String @db.Uuid
+  requester_id String @db.Uuid
+  recipient_id String @db.Uuid
+
+  requester_turn Int
+  recipient_turn Int
+
+  status turn_swap_status @default(PENDING)
+
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+  responded_at DateTime? @db.Timestamptz(6)
+
+  groups groups @relation(fields: [group_id], references: [id], onDelete: Cascade)
+
+  requester users @relation("TurnSwapRequester", fields: [requester_id], references: [id], onDelete: Cascade)
+  recipient users @relation("TurnSwapRecipient", fields: [recipient_id], references: [id], onDelete: Cascade)
+
+  @@index([group_id, status])
+  @@index([requester_id, status])
+  @@index([recipient_id, status])
+  @@schema("public")
+}
+
 enum aal_level {
   aal1
   aal2
@@ -793,6 +823,15 @@ enum contribution_frequency {
   DAILY
   WEEKLY
   MONTHLY
+
+  @@schema("public")
+}
+
+enum turn_swap_status {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
 
   @@schema("public")
 }

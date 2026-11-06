@@ -6,9 +6,17 @@ import { PrismaModule } from './prisma/prisma.module.js';
 import { PaystackModule } from './integrations/paystack/paystack.module.js';
 import { WalletsModule } from './wallets/wallets.module.js';
 import { GroupsModule } from './groups/groups.module.js';
+import { SwapsModule } from './swaps/swaps.module.js';
 
 @Module({
-  imports: [PrismaModule, PaystackModule, WalletsModule, GroupsModule, AuthModule],
+  imports: [
+    PrismaModule,
+    PaystackModule,
+    WalletsModule,
+    GroupsModule,
+    AuthModule,
+    SwapsModule,
+  ],
 
   controllers: [AppController],
   providers: [AppService],
