@@ -314,6 +314,66 @@ export class GroupsService {
           throw new NotFoundException('Group could not be credited');
         }
 
+        // 7. Get the current active contribution cycle
+        const currentSchedule = await tx.payout_schedule.findFirst({
+          where: {
+            group_id: dto.groupId,
+            status: 'current',
+          },
+          orderBy: {
+            payout_month: 'asc',
+          },
+          select: {
+            payout_month: true,
+          },
+        });
+
+        if (!currentSchedule) {
+          throw new BadRequestException(
+            'No active contribution cycle found for this group.',
+          );
+        }
+
+        // Find this member's contribution for the active cycle
+        const contribution = await tx.contributions.findFirst({
+          where: {
+            group_id: dto.groupId,
+            user_id: dto.userId,
+            cycle_month: currentSchedule.payout_month,
+          },
+        });
+
+        if (!contribution) {
+          throw new BadRequestException(
+            'No contribution record found for the current cycle.',
+          );
+        }
+
+        if (contribution.status === 'paid') {
+          throw new BadRequestException(
+            'You have already paid your contribution for this cycle.',
+          );
+        }
+
+        // Mark the contribution as paid
+        const updatedContribution = await tx.contributions.updateMany({
+          where: {
+            id: contribution.id,
+            status: 'pending',
+          },
+          data: {
+            status: 'paid',
+            amount,
+            paid_at: new Date(),
+          },
+        });
+
+        if (updatedContribution.count !== 1) {
+          throw new BadRequestException(
+            'Unable to update contribution. It may have already been paid.',
+          );
+        }
+
         // 7. Record the successful transfer
         const reference = `CONTRIB_${randomUUID()}`;
 
